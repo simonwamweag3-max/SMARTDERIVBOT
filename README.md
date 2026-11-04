@@ -1,26 +1,28 @@
 # SMARTDERIVBOT
 
-A Deriv Synthetic Indices quantitative trading dashboard and persistent execution worker.
+Deriv Synthetic Indices dashboard and worker scaffold.
 
-## Architecture
-- `apps/web`: Next.js App Router dashboard (`/d-circle`, `/bot-runner`, `/auto-strategy`).
-- `apps/worker`: persistent Node.js service that owns the Deriv WebSocket, tick buffer, strategy state and order execution.
-- Dashboard hosting: Vercel. The worker must run on an always-on Node.js host; Vercel serverless functions are not suitable for persistent trading loops.
+## Current contents
+- Next.js App Router pages: /d-circle, /bot-runner, /auto-strategy.
+- Dark trading-terminal UI and market catalogue preview.
+- Node.js worker service scaffold with Deriv WebSocket connection, tick-frequency events and health endpoint.
+- Environment templates and Vercel build configuration.
+
+## Important implementation status
+This commit is an **early development scaffold**, not a complete trading product. The dashboard route controls are partly visual placeholders; manual proposal/buy execution, authenticated session recovery, full Deriv market catalogue, durable worker state, trade settlement monitoring, and the Over 3 / Under 6 automated state machines still require implementation and end-to-end tests. DBot XML/JSON files are not executed. Do not use this scaffold for live-money trading.
 
 ## Local setup
 Requires Node.js 20+ and npm 10+.
 
-```bash
-npm install
-cp apps/worker/.env.example apps/worker/.env
-npm run dev:worker
-# in another terminal
-npm run dev:web
-```
+    npm install
+    copy apps/worker/.env.example to apps/worker/.env
+    set DERIV_APP_ID and WEB_ORIGIN in apps/worker/.env
+    npm run dev:worker
+    npm run dev:web
 
-Open http://localhost:3000 and authorize with a Deriv **demo** token. Configure `DERIV_APP_ID` and `WEB_ORIGIN` in the worker environment.
+Open http://localhost:3000. Use a Deriv demo account only while developing. The worker listens on port 4001.
 
-## Safety
-This is an experimental starter, not a production-certified trading system or evidence of a profitable strategy. Demo-test and review all contract parameters before live use. Never commit API tokens or `.env` files. Imported DBot files are inspection-only; arbitrary XML/JSON execution is not enabled. Real trading is disabled by default and requires an explicit worker-side configuration change.
+## Deployment
+Deploy apps/web to Vercel (or configure the monorepo root build command). Deploy apps/worker to an always-on Node.js host with TLS; do not run persistent trading loops inside Vercel serverless functions. Configure DERIV_APP_ID, WEB_ORIGIN, and ALLOW_REAL_TRADING=false on the worker host.
 
-See the README sections and `.env.example` files for deployment and configuration details.
+Never commit account tokens or .env files. This software is experimental and does not imply a profitable trading strategy. Validate contract parameters and test on demo before considering any real account.
