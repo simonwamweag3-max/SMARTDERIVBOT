@@ -16,7 +16,7 @@ A demo-first Deriv Synthetic Indices dashboard with a Next.js web client and an 
 - Worker access-key protection for HTTP API and Socket.IO.
 - Configurable maximum stake, session loss lockout, and trade-count limit.
 - Dockerfile and Railway deployment configuration for the persistent worker.
-- GitHub Actions typecheck/build workflow.
+- GitHub Actions typecheck, unit-test, and build workflow.
 
 ## Safety and scope
 
@@ -123,7 +123,8 @@ Deploy. Open the Vercel URL, visit D-Circle, enter the same `API_ACCESS_KEY` con
 npm run dev:web
 npm run dev:worker
 npm run typecheck
+npm run test
 npm run build
 ```
 
-Do not use live funds with this release. Automated order execution for Over 3 / Under 6, DBot XML/JSON compilation, PostgreSQL persistence, durable risk accounting, multi-user authentication, and full Deriv end-to-end verification remain future work. The Over 3 / Under 6 screen currently computes historical sample shares (digits 4–9 and 0–5) and is informational only; the two groups overlap and are not predictive signals.
+Do not use live funds with this release. Automated order execution for Over 3 / Under 6, DBot XML/JSON compilation, PostgreSQL persistence, durable risk accounting, multi-user authentication, and full Deriv end-to-end verification remain future work. The Over 3 / Under 6 screen currently computes historical sample shares (digits 4–9 and 0–5) and is informational only; the two groups overlap and are not predictive signals. The worker's digit extraction and frequency calculations have automated unit tests; live Deriv integration and order lifecycle still require demo-account testing.
