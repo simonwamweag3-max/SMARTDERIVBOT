@@ -25,6 +25,10 @@ let ws: WebSocket | undefined;
 let socketReady: Promise<void> | undefined;
 let authorized = false;
 let isVirtual = false;
+let derivToken: string | undefined;
+const openContracts = new Set<string>();
+const settledContracts = new Set<string>();
+let tradeInProgress = false;
 let currency = "";
 let balance: number | null = null;
 let market = "R_100";
@@ -49,7 +53,12 @@ function connect(): Promise<void> {
     const s = new WebSocket("wss://ws.derivws.com/websockets/v3?app_id=" + encodeURIComponent(appId));
     ws = s;
     const timeout = setTimeout(() => { socketReady = undefined; reject(new Error("Deriv connection timed out")); s.close(); }, 12000);
-    s.onopen = () => { clearTimeout(timeout); emitStatus(); resolve(); };
+    s.onopen = () => {
+      clearTimeout(timeout);
+      emitStatus();
+      resolve();
+      if (derivToken) void restoreSession();
+    };
     s.onerror = () => { clearTimeout(timeout); socketReady = undefined; reject(new Error("Unable to connect to Deriv WebSocket")); };
     s.onmessage = event => {
       let data: any;
@@ -77,9 +86,15 @@ function connect(): Promise<void> {
         }
       }
       if (data.msg_type === "proposal_open_contract" && data.proposal_open_contract?.is_sold) {
-        const p = data.proposal_open_contract; sessionTrades++;
-        const profit = Number(p.profit || 0); sessionPnl += profit;
-        io.emit("trade-settled", { contractId: p.contract_id, profit, status: p.status, sessionPnl, sessionTrades });
+        const p = data.proposal_open_contract;
+        const contractId = String(p.contract_id || "");
+        if (contractId && !settledContracts.has(contractId)) {
+          settledContracts.add(contractId);
+          openContracts.delete(contractId);
+          const profit = Number(p.profit || 0);
+          if (Number.isFinite(profit)) sessionPnl += profit;
+          io.emit("trade-settled", { contractId, profit, status: p.status, sessionPnl, sessionTrades });
+        }
       }
     };
     s.onclose = () => {
@@ -91,6 +106,32 @@ function connect(): Promise<void> {
     };
   });
   return socketReady;
+}
+async function restoreSession() {
+  const token = derivToken;
+  if (!token) return;
+  try {
+    const result = await send({ authorize: token });
+    authorized = true;
+    isVirtual = Boolean(result.authorize?.is_virtual);
+    balance = Number(result.authorize?.balance);
+    currency = String(result.authorize?.currency || "");
+    if (!isVirtual) {
+      authorized = false;
+      derivToken = undefined;
+      emitStatus();
+      return;
+    }
+    await subscribeTicks();
+    for (const contractId of openContracts) {
+      void send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 }).catch(() => undefined);
+    }
+    emitStatus();
+    io.emit("session-restored", { market, openContracts: openContracts.size, isVirtual });
+  } catch {
+    authorized = false;
+    emitStatus();
+  }
 }
 async function send(payload: Record<string, unknown>): Promise<any> {
   await connect();
@@ -109,7 +150,7 @@ async function subscribeTicks() {
 }
 function requireDemo() {
   if (!authorized) throw new Error("Authorize a Deriv account first");
-  if (!isVirtual && process.env.ALLOW_REAL_TRADING !== "true") throw new Error("Live accounts are blocked. Use a Deriv demo account.");
+  if (!isVirtual) throw new Error("This release is demo-only. Live accounts are blocked.");
 }
 function validStake(value: unknown): number {
   const stake = Number(value);
@@ -127,7 +168,8 @@ app.post("/api/authorize", async (req, res) => {
     const result = await send({ authorize: supplied });
     authorized = true; isVirtual = Boolean(result.authorize?.is_virtual);
     balance = Number(result.authorize?.balance); currency = String(result.authorize?.currency || "");
-    if (!isVirtual && process.env.ALLOW_REAL_TRADING !== "true") { authorized = false; throw new Error("Live account authorization is disabled. Please use a demo token."); }
+    if (!isVirtual) { authorized = false; derivToken = undefined; throw new Error("Live account authorization is disabled. Please use a demo token."); }
+    derivToken = supplied;
     await subscribeTicks();
     res.json({ ok: true, balance, currency, isVirtual, market });
   } catch (error: any) { authorized = false; res.status(400).json({ error: error.message || "Authorization failed" }); }
@@ -142,6 +184,8 @@ app.post("/api/market", async (req, res) => {
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 });
 app.post("/api/trade", async (req, res) => {
+  if (tradeInProgress) return res.status(429).json({ error: "A trade request is already being processed. Wait for its result." });
+  tradeInProgress = true;
   try {
     requireDemo();
     const stake = validStake(req.body?.stake);
@@ -156,12 +200,15 @@ app.post("/api/trade", async (req, res) => {
     const bought = await send({ buy: proposalId, price: stake });
     const contractId = bought.buy?.contract_id;
     if (!contractId) throw new Error("Deriv did not confirm the contract purchase");
+    openContracts.add(String(contractId));
+    sessionTrades++;
     await send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
     res.json({ ok: true, contractId, buyPrice: bought.buy?.buy_price, payout: proposal.proposal?.payout, longcode: proposal.proposal?.longcode, kind, barrier, stake });
   } catch (error: any) { res.status(400).json({ error: error.message || "Trade failed" }); }
+  finally { tradeInProgress = false; }
 });
 app.post("/api/disconnect", (_req, res) => {
-  authorized = false; isVirtual = false; balance = null; currency = ""; ticks = [];
+  authorized = false; isVirtual = false; derivToken = undefined; balance = null; currency = ""; ticks = [];
   try { ws?.close(); } catch {}
   res.json({ ok: true });
 });
