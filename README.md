@@ -1,0 +1,2 @@
+# SMARTDERIVBOT
+deriv Binary autobot
