@@ -1,0 +1,1 @@
+{"buildCommand":"npm run build --workspace @smartderivbot/web","installCommand":"npm install","framework":"nextjs","outputDirectory":"apps/web/.next"}
