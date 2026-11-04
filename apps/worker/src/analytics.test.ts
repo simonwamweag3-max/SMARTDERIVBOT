@@ -6,6 +6,7 @@ test("extractLastDigit preserves trailing zeroes in quote precision", () => {
   assert.equal(extractLastDigit("123.450"), 0);
   assert.equal(extractLastDigit("123.456"), 6);
   assert.equal(extractLastDigit("98"), 8);
+  assert.equal(extractLastDigit(123.45, 3), 0);
   assert.equal(extractLastDigit("not-a-quote"), null);
 });
 
