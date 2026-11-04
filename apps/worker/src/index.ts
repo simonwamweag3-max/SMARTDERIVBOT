@@ -14,13 +14,15 @@ app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: "32kb" }));
 app.disable("x-powered-by");
 const accessKey = process.env.API_ACCESS_KEY || "";
+if (process.env.NODE_ENV === "production" && accessKey.length < 32) {
+  throw new Error("API_ACCESS_KEY must be set to a unique secret of at least 32 characters in production");
+}
 function keyMatches(value: string) { const a = Buffer.from(value); const b = Buffer.from(accessKey); return a.length === b.length && timingSafeEqual(a, b); }
 app.use("/api", (req, res, next) => { if (!accessKey || keyMatches(String(req.header("x-api-key") || ""))) return next(); res.status(401).json({ error: "Invalid or missing worker access key" }); });
 io.use((socket, next) => { if (!accessKey || keyMatches(String(socket.handshake.auth?.apiKey || ""))) return next(); next(new Error("Invalid worker access key")); });
 
 let ws: WebSocket | undefined;
 let socketReady: Promise<void> | undefined;
-let token = "";
 let authorized = false;
 let isVirtual = false;
 let currency = "";
@@ -122,14 +124,13 @@ app.post("/api/authorize", async (req, res) => {
   try {
     const supplied = String(req.body?.token || "").trim();
     if (supplied.length < 10 || supplied.length > 4096) throw new Error("Enter a valid Deriv API token");
-    token = supplied;
     const result = await send({ authorize: token });
     authorized = true; isVirtual = Boolean(result.authorize?.is_virtual);
     balance = Number(result.authorize?.balance); currency = String(result.authorize?.currency || "");
-    if (!isVirtual && process.env.ALLOW_REAL_TRADING !== "true") { token = ""; authorized = false; throw new Error("Live account authorization is disabled. Please use a demo token."); }
+    if (!isVirtual && process.env.ALLOW_REAL_TRADING !== "true") { authorized = false; throw new Error("Live account authorization is disabled. Please use a demo token."); }
     await subscribeTicks();
     res.json({ ok: true, balance, currency, isVirtual, market });
-  } catch (error: any) { token = ""; authorized = false; res.status(400).json({ error: error.message || "Authorization failed" }); }
+  } catch (error: any) { authorized = false; res.status(400).json({ error: error.message || "Authorization failed" }); }
 });
 app.post("/api/market", async (req, res) => {
   try {
@@ -160,7 +161,7 @@ app.post("/api/trade", async (req, res) => {
   } catch (error: any) { res.status(400).json({ error: error.message || "Trade failed" }); }
 });
 app.post("/api/disconnect", (_req, res) => {
-  token = ""; authorized = false; isVirtual = false; balance = null; currency = ""; ticks = [];
+  authorized = false; isVirtual = false; balance = null; currency = ""; ticks = [];
   try { ws?.close(); } catch {}
   res.json({ ok: true });
 });
