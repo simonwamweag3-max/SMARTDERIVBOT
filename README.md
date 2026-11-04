@@ -9,7 +9,9 @@ A demo-first Deriv Synthetic Indices dashboard with a Next.js web client and an 
 - Rolling last-1,000-tick digit frequency stream (digits 0–9).
 - Deriv API token authorization held in worker memory only.
 - Manual one-tick Digit Over / Digit Under proposal and buy flow.
-- Contract settlement notifications and session P/L counters.
+- Contract settlement notifications and session P/L counters with duplicate-settlement protection.
+- Automatic demo-session reauthorization and tick/open-contract subscription restoration after WebSocket reconnect.
+- Server-side single-flight trade guard to reduce accidental duplicate purchases.
 - Demo-account-only trading by default.
 - Worker access-key protection for HTTP API and Socket.IO.
 - Configurable maximum stake, session loss lockout, and trade-count limit.
@@ -22,7 +24,7 @@ This is a **demo deployment candidate**, not a verified production trading syste
 
 The Over 3 / Under 6 page currently monitors simple digit trigger conditions only; it does not run an automated trading strategy. The DBot page does not execute imported XML/JSON. User accounts, multi-user isolation, durable database storage, worker failover/recovery of open contracts, full market catalogue validation, and automated strategy execution are not included. Do not expose a shared worker to untrusted users.
 
-The worker's risk limits are in-memory session controls, not a persistent daily risk ledger. A restart resets them. Test all contract parameters and settlement handling on a Deriv demo account before any further release.
+The worker's risk limits and session counters are in-memory controls, not a persistent daily risk ledger. A worker restart resets them, and open-contract recovery is best-effort while the worker process remains alive. The worker is deliberately demo-only: live accounts are rejected even if `ALLOW_REAL_TRADING` is set. Test all contract parameters and settlement handling on a Deriv demo account before any further release.
 
 ## Requirements
 
@@ -99,7 +101,8 @@ Deploy. Open the Vercel URL, visit D-Circle, enter the same `API_ACCESS_KEY` con
 - Confirm a demo authorization shows the demo-account status.
 - Place only the minimum affordable demo contract and verify its settlement event.
 - Test invalid token, invalid market, stake above the cap, and loss-lockout behavior.
-- Restart the worker and verify it reconnects; note that current in-memory session counters and tick history reset after restart.
+- Interrupt the worker's Deriv WebSocket and verify demo authorization, tick subscription, and known open-contract subscriptions are restored.
+- Restart the worker and verify it reconnects; note that in-memory session counters, token authorization, open-contract tracking, and tick history reset after a full process restart.
 
 ## Environment variables
 
@@ -123,4 +126,4 @@ npm run typecheck
 npm run build
 ```
 
-Do not use live funds with this release. Automated Over 3 / Under 6 trading, DBot compilation, persistent risk accounting, multi-user authentication, and end-to-end verification remain future work.
+Do not use live funds with this release. Automated order execution for Over 3 / Under 6, DBot XML/JSON compilation, PostgreSQL persistence, durable risk accounting, multi-user authentication, and full Deriv end-to-end verification remain future work. The Over 3 / Under 6 screen currently computes historical sample shares (digits 4–9 and 0–5) and is informational only; the two groups overlap and are not predictive signals.
