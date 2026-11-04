@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 const API = (process.env.NEXT_PUBLIC_WORKER_URL || "http://localhost:4001").replace(/\/$/, "");
 const markets = [["R_10","Volatility 10"],["R_25","Volatility 25"],["R_50","Volatility 50"],["R_75","Volatility 75"],["R_100","Volatility 100"],["1HZ10V","Volatility 10 (1s)"],["1HZ25V","Volatility 25 (1s)"],["1HZ50V","Volatility 50 (1s)"],["1HZ75V","Volatility 75 (1s)"],["1HZ100V","Volatility 100 (1s)"]];
 type Stats = {count:number;currentDigit:number;frequencies:number[];market:string};
@@ -8,8 +8,7 @@ export default function DCircle(){
  const [market,setMarket]=useState("R_100"),[stake,setStake]=useState("1"),[barrier,setBarrier]=useState("3"),[kind,setKind]=useState("DIGITOVER");
  const [accessKey,setAccessKey]=useState(""),[token,setToken]=useState(""),[authorized,setAuthorized]=useState(false),[isVirtual,setIsVirtual]=useState(false),[balance,setBalance]=useState<number|null>(null),[currency,setCurrency]=useState("");
  const [stats,setStats]=useState<Stats>({count:0,currentDigit:-1,frequencies:Array(10).fill(0),market:"R_100"}),[status,setStatus]=useState("Connecting to worker…"),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
- const [socket,setSocket]=useState<Socket|null>(null);
- useEffect(()=>{const s=io(API,{transports:["websocket","polling"],auth:{apiKey:accessKey}});setSocket(s);s.on("connect",()=>setStatus("Worker connected"));s.on("connect_error",()=>setStatus("Worker unavailable"));s.on("worker-status",v=>setStatus(v?.connected?"Deriv socket connected":"Worker online · Deriv disconnected"));s.on("stats",setStats);s.on("balance",v=>{setBalance(v.balance);setCurrency(v.currency);setIsVirtual(Boolean(v.isVirtual));});s.on("snapshot",v=>{setAuthorized(Boolean(v.authorized));setBalance(v.balance);setCurrency(v.currency||"");setIsVirtual(Boolean(v.isVirtual));});s.on("trade-settled",v=>setMessage(`Contract ${v.contractId}: ${v.status}, P/L ${v.profit} ${currency}`));return()=>{s.disconnect();};},[accessKey]);
+ useEffect(()=>{const s=io(API,{transports:["websocket","polling"],auth:{apiKey:accessKey}});s.on("connect",()=>setStatus("Worker connected"));s.on("connect_error",()=>setStatus("Worker unavailable"));s.on("worker-status",v=>setStatus(v?.connected?"Deriv socket connected":"Worker online · Deriv disconnected"));s.on("stats",setStats);s.on("balance",v=>{setBalance(v.balance);setCurrency(v.currency);setIsVirtual(Boolean(v.isVirtual));});s.on("snapshot",v=>{setAuthorized(Boolean(v.authorized));setBalance(v.balance);setCurrency(v.currency||"");setIsVirtual(Boolean(v.isVirtual));});s.on("trade-settled",v=>setMessage(`Contract ${v.contractId}: ${v.status}, P/L ${v.profit} ${currency}`));return()=>{s.disconnect();};},[accessKey]);
  async function call(path:string,body?:any){const r=await fetch(API+path,{method:body?"POST":"GET",headers:{"x-api-key":accessKey,...(body?{"Content-Type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||"Request failed");return j;}
  async function authorize(){setBusy(true);setMessage("");try{const v=await call("/api/authorize",{token});setAuthorized(true);setIsVirtual(v.isVirtual);setBalance(v.balance);setCurrency(v.currency);setToken("");setMessage("Deriv demo account connected.");}catch(e:any){setMessage(e.message);}finally{setBusy(false);}}
  async function changeMarket(value:string){setMarket(value);try{await call("/api/market",{symbol:value});setMessage("Market changed to "+value);}catch(e:any){setMessage(e.message);}}
