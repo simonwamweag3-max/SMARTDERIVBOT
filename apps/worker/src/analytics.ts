@@ -1,8 +1,11 @@
 export type DigitFrequency = { digit: number; count: number; percentage: number };
 
 /** Extract the final decimal digit from a Deriv quote without losing trailing zeroes. */
-export function extractLastDigit(quote: string | number): number | null {
-  const text = String(quote).trim();
+export function extractLastDigit(quote: string | number, pipSize?: number): number | null {
+  let text = String(quote).trim();
+  if (typeof quote === "number" && Number.isInteger(pipSize) && Number(pipSize) >= 0 && Number(pipSize) <= 10) {
+    text = quote.toFixed(Number(pipSize));
+  }
   if (!/^\d+(?:\.\d+)?$/.test(text)) return null;
   const digits = text.replace(".", "");
   const last = Number(digits.at(-1));
