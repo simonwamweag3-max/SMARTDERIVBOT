@@ -78,7 +78,7 @@ function connect(): Promise<void> {
       }
       if (data.msg_type === "tick" && data.tick) {
         const quote = String(data.tick.quote);
-        const digit = extractLastDigit(quote);
+        const digit = extractLastDigit(data.tick.quote, Number(data.tick.pip_size));
         if (digit !== null) {
           ticks.push(digit); if (ticks.length > 1000) ticks.shift();
           const frequencies = calculateDigitFrequencies(ticks).map(item => item.percentage);
