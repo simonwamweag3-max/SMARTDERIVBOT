@@ -124,7 +124,7 @@ app.post("/api/authorize", async (req, res) => {
   try {
     const supplied = String(req.body?.token || "").trim();
     if (supplied.length < 10 || supplied.length > 4096) throw new Error("Enter a valid Deriv API token");
-    const result = await send({ authorize: token });
+    const result = await send({ authorize: supplied });
     authorized = true; isVirtual = Boolean(result.authorize?.is_virtual);
     balance = Number(result.authorize?.balance); currency = String(result.authorize?.currency || "");
     if (!isVirtual && process.env.ALLOW_REAL_TRADING !== "true") { authorized = false; throw new Error("Live account authorization is disabled. Please use a demo token."); }
