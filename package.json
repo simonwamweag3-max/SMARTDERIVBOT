@@ -1,1 +1,19 @@
-{"name":"smartderivbot","private":true,"version":"0.1.0","workspaces":["apps/*"],"scripts":{"dev:web":"npm run dev --workspace @smartderivbot/web","dev:worker":"npm run dev --workspace @smartderivbot/worker","build":"npm run build --workspace @smartderivbot/web && npm run build --workspace @smartderivbot/worker","typecheck":"npm run typecheck --workspaces --if-present"}}
+{
+  "name": "smartderivbot",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @smartderivbot/web",
+    "dev:worker": "npm run dev --workspace @smartderivbot/worker",
+    "build": "npm run build --workspace @smartderivbot/web && npm run build --workspace @smartderivbot/worker",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "dependencies": {
+    "next": "^14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
