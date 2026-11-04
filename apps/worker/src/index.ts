@@ -1,3 +1,4 @@
+import { calculateDigitFrequencies, extractLastDigit } from "./analytics";
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -77,11 +78,11 @@ function connect(): Promise<void> {
       }
       if (data.msg_type === "tick" && data.tick) {
         const quote = String(data.tick.quote);
-        const digit = Number(quote.replace(".", "").slice(-1));
-        if (Number.isInteger(digit) && digit >= 0 && digit <= 9) {
+        const digit = extractLastDigit(quote);
+        if (digit !== null) {
           ticks.push(digit); if (ticks.length > 1000) ticks.shift();
-          const counts = Array(10).fill(0); ticks.forEach(n => counts[n]++);
-          io.emit("stats", { count: ticks.length, currentDigit: digit, frequencies: counts.map(n => ticks.length ? n / ticks.length * 100 : 0), market });
+          const frequencies = calculateDigitFrequencies(ticks).map(item => item.percentage);
+          io.emit("stats", { count: ticks.length, currentDigit: digit, frequencies, market });
           io.emit("tick", { quote, epoch: data.tick.epoch, digit, market });
         }
       }
