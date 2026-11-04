@@ -26,6 +26,6 @@ test("empty samples return zero frequencies and share", () => {
 
 test("sampleShare adds the selected inclusive digit range", () => {
   const result = calculateDigitFrequencies([0, 1, 4, 5, 6, 9]);
-  assert.equal(sampleShare(result, 4, 9), 100 / 6 * 4);
+  assert.ok(Math.abs(sampleShare(result, 4, 9) - (100 / 6 * 4)) < 1e-9);
   assert.throws(() => sampleShare(result, 8, 2), RangeError);
 });
