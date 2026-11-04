@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
 import http from "http";
+import { timingSafeEqual } from "crypto";
 
 type Pending = { resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout };
 const app = express();
@@ -12,6 +13,10 @@ const io = new Server(server, { cors: { origin: allowedOrigins } });
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: "32kb" }));
 app.disable("x-powered-by");
+const accessKey = process.env.API_ACCESS_KEY || "";
+function keyMatches(value: string) { const a = Buffer.from(value); const b = Buffer.from(accessKey); return a.length === b.length && timingSafeEqual(a, b); }
+app.use("/api", (req, res, next) => { if (!accessKey || keyMatches(String(req.header("x-api-key") || ""))) return next(); res.status(401).json({ error: "Invalid or missing worker access key" }); });
+io.use((socket, next) => { if (!accessKey || keyMatches(String(socket.handshake.auth?.apiKey || ""))) return next(); next(new Error("Invalid worker access key")); });
 
 let ws: WebSocket | undefined;
 let socketReady: Promise<void> | undefined;
