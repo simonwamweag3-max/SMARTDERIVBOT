@@ -203,7 +203,11 @@ app.post("/api/trade", async (req, res) => {
     if (!contractId) throw new Error("Deriv did not confirm the contract purchase");
     openContracts.add(String(contractId));
     sessionTrades++;
-    await send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
+    try {
+      await send({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1 });
+    } catch {
+      io.emit("worker-warning", { message: "Contract was purchased, but its live settlement subscription could not be confirmed. Reconnect and check Deriv open positions." });
+    }
     res.json({ ok: true, contractId, buyPrice: bought.buy?.buy_price, payout: proposal.proposal?.payout, longcode: proposal.proposal?.longcode, kind, barrier, stake });
   } catch (error: any) { res.status(400).json({ error: error.message || "Trade failed" }); }
   finally { tradeInProgress = false; }
